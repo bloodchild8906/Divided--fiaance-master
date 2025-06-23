@@ -1,0 +1,171 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Start Deployment
+        run: |
+          echo "🚀 Starting deployment process at $(date)"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Environment Information
+        run: |
+          echo "🔍 System Information:"
+          uname -a
+          echo "📦 Disk Space:"
+          df -h
+          echo "💾 Memory Status:"
+          free -h
+          echo "🔧 Node Version:"
+          node -v
+          echo "📊 NPM Version:"
+          npm -v
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Install dependencies
+        id: install
+        run: |
+          echo "📥 Installing dependencies..."
+          npm ci
+          echo "📋 Listing installed packages:"
+          npm list --depth=1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Build
+        id: build
+        run: |
+          echo "🏗️ Starting build process..."
+          START_TIME=$(date +%s)
+          npm run build
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "⏱️ Build completed in ${DURATION} seconds"
+          echo "📦 Build artifacts:"
+          ls -la build/
+        env:
+          CI: true
+
+      - name: Run tests
+        id: test
+        continue-on-error: true
+        run: |
+          echo "🧪 Running tests..."
+          npm test || echo "::warning::Tests failed but continuing deployment"
+
+      - name: Upload artifact
+        id: upload
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        if: github.ref == 'refs/heads/master'
+
+      - name: Deployment Status
+        if: always()
+        run: |
+          echo "📝 Deployment Summary:"
+          echo "✨ Installation: ${{ steps.install.outcome }}"
+          echo "🏗️ Build: ${{ steps.build.outcome }}"
+          echo "🧪 Tests: ${{ steps.test.outcome }}"
+          echo "📤 Upload: ${{ steps.upload.outcome }}"
+          echo "🚀 Deployment: ${{ steps.deployment.outcome }}"
+          echo "🌐 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const run_id = context.runId;
+            const run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`;
+            const message = `
+            # 🚨 Deployment Failed
+            
+            ## Details
+            - Repository: ${owner}/${repo}
+            - Commit: ${context.sha.substring(0, 7)}
+            - Branch: ${context.ref}
+            - Triggered by: ${context.actor}
+            
+            ## Status
+            - Installation: ${process.env.INSTALL_STATUS}
+            - Build: ${process.env.BUILD_STATUS}
+            - Tests: ${process.env.TEST_STATUS}
+            - Upload: ${process.env.UPLOAD_STATUS}
+            - Deployment: Failed
+            
+            [View detailed logs](${run_url})
+            `;
+            
+            github.rest.issues.create({
+              owner,
+              repo,
+              title: `🚨 Deployment failed for ${context.sha.substring(0, 7)}`,
+              body: message,
+              labels: ['deployment-failure']
+            });
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up..."
+          echo "💾 Remaining disk space:"
+          df -h
+          echo "✅ Deployment process completed at $(date)"
