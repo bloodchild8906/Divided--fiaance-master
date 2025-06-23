@@ -13,6 +13,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: "pages"
@@ -31,27 +32,26 @@ jobs:
     steps:
       - name: Start Deployment
         run: |
-          echo "🚀 Starting deployment process at $(date)"
+          echo "::group::🚀 Deployment Information"
+          echo "Starting deployment process at $(date)"
           echo "Repository: ${{ github.repository }}"
           echo "Branch: ${{ github.ref }}"
           echo "Commit: ${{ github.sha }}"
           echo "Triggered by: ${{ github.actor }}"
+          echo "::endgroup::"
 
       - name: Checkout repository
         uses: actions/checkout@v4
       
       - name: Environment Information
         run: |
-          echo "🔍 System Information:"
+          echo "::group::🔍 System Information"
           uname -a
           echo "📦 Disk Space:"
           df -h
           echo "💾 Memory Status:"
           free -h
-          echo "🔧 Node Version:"
-          node -v
-          echo "📊 NPM Version:"
-          npm -v
+          echo "::endgroup::"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -65,10 +65,11 @@ jobs:
       - name: Install dependencies
         id: install
         run: |
-          echo "📥 Installing dependencies..."
+          echo "::group::📥 Installing Dependencies"
           npm ci
-          echo "📋 Listing installed packages:"
+          echo "📋 Installed packages:"
           npm list --depth=1
+          echo "::endgroup::"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -85,7 +86,7 @@ jobs:
       - name: Build
         id: build
         run: |
-          echo "🏗️ Starting build process..."
+          echo "::group::🏗️ Build Process"
           START_TIME=$(date +%s)
           npm run build
           END_TIME=$(date +%s)
@@ -93,6 +94,7 @@ jobs:
           echo "⏱️ Build completed in ${DURATION} seconds"
           echo "📦 Build artifacts:"
           ls -la build/
+          echo "::endgroup::"
         env:
           CI: true
 
@@ -100,8 +102,9 @@ jobs:
         id: test
         continue-on-error: true
         run: |
-          echo "🧪 Running tests..."
+          echo "::group::🧪 Testing"
           npm test || echo "::warning::Tests failed but continuing deployment"
+          echo "::endgroup::"
 
       - name: Upload artifact
         id: upload
@@ -117,53 +120,39 @@ jobs:
       - name: Deployment Status
         if: always()
         run: |
-          echo "📝 Deployment Summary:"
+          echo "::group::📝 Deployment Summary"
           echo "✨ Installation: ${{ steps.install.outcome }}"
           echo "🏗️ Build: ${{ steps.build.outcome }}"
           echo "🧪 Tests: ${{ steps.test.outcome }}"
           echo "📤 Upload: ${{ steps.upload.outcome }}"
           echo "🚀 Deployment: ${{ steps.deployment.outcome }}"
-          echo "🌐 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
+          if [ "${{ steps.deployment.outcome }}" = "success" ]; then
+            echo "🌐 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
+          fi
+          echo "::endgroup::"
 
       - name: Notify on failure
         if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { repo, owner } = context.repo;
-            const run_id = context.runId;
-            const run_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`;
-            const message = `
-            # 🚨 Deployment Failed
-            
-            ## Details
-            - Repository: ${owner}/${repo}
-            - Commit: ${context.sha.substring(0, 7)}
-            - Branch: ${context.ref}
-            - Triggered by: ${context.actor}
-            
-            ## Status
-            - Installation: ${process.env.INSTALL_STATUS}
-            - Build: ${process.env.BUILD_STATUS}
-            - Tests: ${process.env.TEST_STATUS}
-            - Upload: ${process.env.UPLOAD_STATUS}
-            - Deployment: Failed
-            
-            [View detailed logs](${run_url})
-            `;
-            
-            github.rest.issues.create({
-              owner,
-              repo,
-              title: `🚨 Deployment failed for ${context.sha.substring(0, 7)}`,
-              body: message,
-              labels: ['deployment-failure']
-            });
+        run: |
+          echo "::error::Deployment failed!"
+          echo "::group::🚨 Failure Details"
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Installation status: ${{ steps.install.outcome }}"
+          echo "Build status: ${{ steps.build.outcome }}"
+          echo "Test status: ${{ steps.test.outcome }}"
+          echo "Upload status: ${{ steps.upload.outcome }}"
+          echo "Deployment status: ${{ steps.deployment.outcome }}"
+          echo "View logs at: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "::endgroup::"
 
       - name: Cleanup
         if: always()
         run: |
-          echo "🧹 Cleaning up..."
+          echo "::group::🧹 Cleanup"
           echo "💾 Remaining disk space:"
           df -h
           echo "✅ Deployment process completed at $(date)"
+          echo "::endgroup::"
