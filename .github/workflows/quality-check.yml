@@ -1,4 +1,4 @@
-﻿name: 🔍 Code Quality & Security Check
+﻿﻿name: 🔍 Code Quality & Security Check
 
 on:
   push:
@@ -46,8 +46,24 @@ jobs:
         run: |
           echo "::group::📦 Installing Dependencies"
           echo "⏳ Installing dependencies for quality checks..."
-          npm ci --no-audit --prefer-offline
-          echo "✅ Dependencies installed successfully!"
+
+          # Check if package-lock.json exists and is in sync
+          if [ -f "package-lock.json" ]; then
+            echo "📋 package-lock.json found, attempting clean install..."
+            if npm ci --no-audit --prefer-offline; then
+              echo "✅ Clean install successful!"
+            else
+              echo "⚠️ Clean install failed, falling back to regular install..."
+              echo "🔄 Updating package-lock.json..."
+              npm install --no-audit --prefer-offline
+              echo "✅ Dependencies installed and lock file updated!"
+            fi
+          else
+            echo "📋 No package-lock.json found, creating one..."
+            npm install --no-audit --prefer-offline
+            echo "✅ Dependencies installed and lock file created!"
+          fi
+
           echo "::endgroup::"
 
       - name: 🔒 Security Audit
