@@ -1,79 +1,118 @@
-# Divided Finance Master
+# 💼 Divided Finance Master
 
-Divided Finance Master is a fully offline, open-source invoicing and quotation app built with React and Tailwind CSS. It supports multi-currency, local storage persistence, PDF export, theming, and client management.
+> **Complete Open Source Invoicing System**
+> Beautiful, intuitive, and completely private invoice generator with all data stored locally in your browser.
 
-## 🌍 Features
+![Divided Finance Master](./public/images/logo.png)
 
-- International currency support with symbols
-- Theme editor (background, text, accent colors)
-- Client management modal
-- Multi-page PDF export
-- LocalStorage persistence (no server or backend needed)
-- Import/Export invoices as JSON
-- Dark mode by default
-- GitHub Pages deployment ready
+## 🌟 Features
 
-## 🚀 Getting Started
+- 🚀 **Lightning Fast** - Create professional invoices in under 2 minutes
+- 🎨 **Beautiful Design** - Stunning, customizable templates with sophisticated color palette
+- 💾 **Auto-Save** - Never lose your work with automatic saving
+- 📱 **Mobile Ready** - Works perfectly on all devices
+- 🔒 **Privacy First** - All data stored locally in your browser - zero server storage
+- 📊 **Smart Analytics** - Track your invoicing performance with built-in dashboard
+- 🔓 **Open Source** - Complete transparency and customization
+- 🎯 **No Sign-up Required** - Start creating invoices immediately
+- 🌙 **Dark Mode Support** - Beautiful dark theme included
+- 💰 **Multiple Currencies** - Support for global currencies
+- 📑 **PDF Export** - Professional PDF generation
+- 👥 **Client Management** - Organize and manage your clients
+
+## Live Demo
+
+Access the live demo [here](https://bloodchild8906.github.io/Divided-Finance-Master)
+
+## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or later)
+- Node.js (version 14 or higher)
 - npm or yarn
 
-### Install & Run
+### Installation
 
+1. Clone the repository:
+git clone https://github.com/bloodchild8906/Divided-Finance-Master.git
+cd Divided-Finance-Master
+
+2. Install dependencies:
 ```bash
 npm install
-npm start
+# or
+yarn install
 ```
 
-To build for production:
+3. Start the development server:
+```bash
+npm start
+# or
+yarn start
+```
 
+4. Build for production:
 ```bash
 npm run build
+# or
+yarn build
 ```
 
-### Deploy to GitHub Pages
+## Usage
 
-1. Push this repo to GitHub.
-2. Add the following to `package.json`:
+1. **Company Information**
+   - Add your company details
+   - Upload company logo
+   - Set payment information
 
-```json
-"homepage": "https://<your-username>.github.io/divided-finance-master"
-```
+2. **Client Management**
+   - Add new clients
+   - Select existing clients
+   - Manage client database
 
-3. Add the GitHub Actions workflow under `.github/workflows/deploy.yml`:
+3. **Invoice Items**
+   - Add/remove items
+   - Set quantities and prices
+   - Add tax rates
+   - Multiple currency support
 
-```yaml
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [main]
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: './build'
-      - uses: actions/deploy-pages@v4
-```
+4. **Theme Customization**
+   - Change primary colors
+   - Customize fonts
+   - Adjust layout elements
 
-## 🛡️ Privacy
+5. **Export Options**
+   - Download as PDF
+   - Print directly
+   - Save to browser storage
 
-All data is stored locally in your browser using `localStorage`. Nothing is tracked or sent to any server.
+## Tech Stack
 
-## 📝 License
+- React
+- Tailwind CSS
+- @react-pdf/renderer
+- react-color
+- react-toastify
+- currency-symbol-map
 
-MIT
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- React Team
+- Tailwind CSS Team
+- All contributors and supporters
+
+## Support
+
+For support, email your-email@example.com or open an issue in the repository.

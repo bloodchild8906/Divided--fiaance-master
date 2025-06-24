@@ -3,156 +3,33 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - master
-  pull_request:
-    branches:
-      - master
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  issues: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
-env:
-  NODE_VERSION: '18'
+      - main # or master, depending on your default branch name
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Start Deployment
-        run: |
-          echo "::group::🚀 Deployment Information"
-          echo "Starting deployment process at $(date)"
-          echo "Repository: ${{ github.repository }}"
-          echo "Branch: ${{ github.ref }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Triggered by: ${{ github.actor }}"
-          echo "::endgroup::"
-
       - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Environment Information
-        run: |
-          echo "::group::🔍 System Information"
-          uname -a
-          echo "📦 Disk Space:"
-          df -h
-          echo "💾 Memory Status:"
-          free -h
-          echo "::endgroup::"
+        uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'
           cache: 'npm'
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
       - name: Install dependencies
-        id: install
-        run: |
-          echo "::group::📥 Installing Dependencies"
-          npm ci
-          echo "📋 Installed packages:"
-          npm list --depth=1
-          echo "::endgroup::"
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            **/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Build
-        id: build
-        run: |
-          echo "::group::🏗️ Build Process"
-          START_TIME=$(date +%s)
-          npm run build
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-          echo "⏱️ Build completed in ${DURATION} seconds"
-          echo "📦 Build artifacts:"
-          ls -la build/
-          echo "::endgroup::"
-        env:
-          CI: true
-
-      - name: Run tests
-        id: test
-        continue-on-error: true
-        run: |
-          echo "::group::🧪 Testing"
-          npm test || echo "::warning::Tests failed but continuing deployment"
-          echo "::endgroup::"
-
-      - name: Upload artifact
-        id: upload
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./build
+          CI: false # This prevents treating warnings as errors
 
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        if: github.ref == 'refs/heads/master'
-
-      - name: Deployment Status
-        if: always()
-        run: |
-          echo "::group::📝 Deployment Summary"
-          echo "✨ Installation: ${{ steps.install.outcome }}"
-          echo "🏗️ Build: ${{ steps.build.outcome }}"
-          echo "🧪 Tests: ${{ steps.test.outcome }}"
-          echo "📤 Upload: ${{ steps.upload.outcome }}"
-          echo "🚀 Deployment: ${{ steps.deployment.outcome }}"
-          if [ "${{ steps.deployment.outcome }}" = "success" ]; then
-            echo "🌐 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
-          fi
-          echo "::endgroup::"
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "::error::Deployment failed!"
-          echo "::group::🚨 Failure Details"
-          echo "Repository: ${{ github.repository }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref }}"
-          echo "Triggered by: ${{ github.actor }}"
-          echo "Installation status: ${{ steps.install.outcome }}"
-          echo "Build status: ${{ steps.build.outcome }}"
-          echo "Test status: ${{ steps.test.outcome }}"
-          echo "Upload status: ${{ steps.upload.outcome }}"
-          echo "Deployment status: ${{ steps.deployment.outcome }}"
-          echo "View logs at: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "::endgroup::"
-
-      - name: Cleanup
-        if: always()
-        run: |
-          echo "::group::🧹 Cleanup"
-          echo "💾 Remaining disk space:"
-          df -h
-          echo "✅ Deployment process completed at $(date)"
-          echo "::endgroup::"
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages # The branch the action should deploy to
+          folder: build # The folder the action should deploy
+          clean: true # Automatically remove deleted files from the deployment

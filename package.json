@@ -1,24 +1,24 @@
 {
-  "name": "divided-finance",
+  "name": "divided-finance-master",
   "version": "1.0.0",
-  "description": "Divided Finance Application",
-  "private": true,
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
+  "homepage": "https://yourusername.github.io/divided-finance-master",
   "dependencies": {
+    "@react-pdf/renderer": "^3.2.0",
+    "react-toastify": "^9.1.3",
+    "currency-symbol-map": "^5.0.1",
+    "@tailwindcss/forms": "^0.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0"
+    "react-router-dom": "^6.22.3"
   },
   "browserslist": {
     "production": [
