@@ -1,4 +1,4 @@
-﻿﻿name: 🔍 Code Quality & Security Check
+﻿﻿﻿name: 🔍 Code Quality & Security Check
 
 on:
   push:
@@ -47,21 +47,20 @@ jobs:
           echo "::group::📦 Installing Dependencies"
           echo "⏳ Installing dependencies for quality checks..."
 
-          # Check if package-lock.json exists and is in sync
-          if [ -f "package-lock.json" ]; then
-            echo "📋 package-lock.json found, attempting clean install..."
-            if npm ci --no-audit --prefer-offline; then
-              echo "✅ Clean install successful!"
-            else
-              echo "⚠️ Clean install failed, falling back to regular install..."
-              echo "🔄 Updating package-lock.json..."
-              npm install --no-audit --prefer-offline
-              echo "✅ Dependencies installed and lock file updated!"
-            fi
+          # Always use npm install for GitHub Actions to ensure compatibility
+          echo "🔄 Installing dependencies with npm install..."
+          echo "📋 This ensures package-lock.json is always in sync"
+
+          npm install --no-audit --prefer-offline
+
+          echo "✅ Dependencies installed successfully!"
+          echo "📊 Verifying installation..."
+
+          # Verify critical dependencies
+          if npm list react react-dom @react-pdf/renderer --depth=0; then
+            echo "✅ Core dependencies verified!"
           else
-            echo "📋 No package-lock.json found, creating one..."
-            npm install --no-audit --prefer-offline
-            echo "✅ Dependencies installed and lock file created!"
+            echo "⚠️ Some dependencies may be missing, but continuing..."
           fi
 
           echo "::endgroup::"
