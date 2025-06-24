@@ -1,10 +1,10 @@
-﻿﻿﻿name: 🚀 Deploy Divided Finance Master to GitHub Pages
+﻿﻿﻿﻿﻿﻿name: 🚀 Deploy Divided Finance Master to GitHub Pages
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
@@ -237,8 +237,43 @@ jobs:
       - name: 🚀 Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
         
+      - name: 🚨 Deployment Error Check
+        if: steps.deployment.outcome == 'failure'
+        run: |
+          echo "::group::🚨 Deployment Failed - Troubleshooting Guide"
+          echo "❌ GitHub Pages deployment failed!"
+          echo ""
+          echo "🔍 Common Issues and Solutions:"
+          echo ""
+          echo "1. 📋 GitHub Pages Not Enabled:"
+          echo "   • Go to: ${{ github.server_url }}/${{ github.repository }}/settings/pages"
+          echo "   • Set Source to 'GitHub Actions'"
+          echo "   • Click Save"
+          echo ""
+          echo "2. 🔐 Insufficient Permissions:"
+          echo "   • Go to: ${{ github.server_url }}/${{ github.repository }}/settings/actions"
+          echo "   • Set Workflow permissions to 'Read and write permissions'"
+          echo "   • Check 'Allow GitHub Actions to create and approve pull requests'"
+          echo ""
+          echo "3. 🏢 Repository Settings:"
+          echo "   • Ensure repository is public OR you have GitHub Pro/Team"
+          echo "   • Check that Pages is available for your account type"
+          echo ""
+          echo "4. 🔄 Retry Steps:"
+          echo "   • Fix the settings above"
+          echo "   • Re-run this workflow"
+          echo "   • Or push a new commit to trigger deployment"
+          echo ""
+          echo "🔗 Helpful Links:"
+          echo "  ⚙️ Pages Settings: ${{ github.server_url }}/${{ github.repository }}/settings/pages"
+          echo "  🔐 Actions Settings: ${{ github.server_url }}/${{ github.repository }}/settings/actions"
+          echo "  📖 GitHub Pages Docs: https://docs.github.com/en/pages/getting-started-with-github-pages"
+          echo "::endgroup::"
+
       - name: ✅ Deployment Success
+        if: steps.deployment.outcome == 'success'
         run: |
           echo "::group::✅ Deployment Completed Successfully!"
           echo "🎉 ${{ env.APP_NAME }} has been deployed!"
@@ -259,7 +294,12 @@ jobs:
           echo "  3. 📊 Monitor for any issues"
           echo "::endgroup::"
           
-      - name: 🔔 Deployment Notification
-        if: success()
+      - name: 🔔 Success Notification
+        if: steps.deployment.outcome == 'success'
         run: |
           echo "::notice title=🎉 Deployment Successful::${{ env.APP_NAME }} has been successfully deployed to GitHub Pages! 🌐 Live at: ${{ steps.deployment.outputs.page_url }}"
+
+      - name: 🚨 Failure Notification
+        if: steps.deployment.outcome == 'failure'
+        run: |
+          echo "::error title=❌ Deployment Failed::GitHub Pages deployment failed! Please check the troubleshooting guide above and ensure GitHub Pages is enabled in repository settings."
