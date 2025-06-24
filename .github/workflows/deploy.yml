@@ -1,0 +1,250 @@
+﻿name: 🚀 Deploy Divided Finance Master to GitHub Pages
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '18'
+  APP_NAME: 'Divided Finance Master'
+  DEPLOY_URL: 'https://bloodchild8906.github.io/Divided-Finance-Master'
+
+jobs:
+  # 🏗️ Build job with fancy logging
+  build:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    outputs:
+      build-size: ${{ steps.build-info.outputs.size }}
+      build-time: ${{ steps.build-info.outputs.time }}
+      commit-sha: ${{ steps.build-info.outputs.sha }}
+    steps:
+      - name: 📋 Job Information
+        run: |
+          echo "::group::🚀 Deployment Information"
+          echo "📦 Application: ${{ env.APP_NAME }}"
+          echo "🌐 Target URL: ${{ env.DEPLOY_URL }}"
+          echo "🔧 Node.js Version: ${{ env.NODE_VERSION }}"
+          echo "🏃 Runner: ${{ runner.os }}"
+          echo "📅 Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🔀 Event: ${{ github.event_name }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "👤 Actor: ${{ github.actor }}"
+          echo "::endgroup::"
+
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        
+      - name: 📊 Repository Information
+        run: |
+          echo "::group::📊 Repository Statistics"
+          echo "📝 Commit SHA: ${{ github.sha }}"
+          echo "📝 Short SHA: $(git rev-parse --short ${{ github.sha }})"
+          echo "💬 Commit Message: $(git log -1 --pretty=format:'%s')"
+          echo "👤 Commit Author: $(git log -1 --pretty=format:'%an <%ae>')"
+          echo "📅 Commit Date: $(git log -1 --pretty=format:'%ci')"
+          echo "📁 Changed Files: $(git diff --name-only HEAD~1 HEAD | wc -l)"
+          echo "::endgroup::"
+          
+      - name: 🔧 Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 📋 Node.js Environment Info
+        run: |
+          echo "::group::🔧 Environment Information"
+          echo "📦 Node.js Version: $(node --version)"
+          echo "📦 NPM Version: $(npm --version)"
+          echo "💾 NPM Cache: $(npm config get cache)"
+          echo "🏠 Working Directory: $(pwd)"
+          echo "::endgroup::"
+          
+      - name: 📦 Install Dependencies
+        run: |
+          echo "::group::📦 Installing Dependencies"
+          echo "⏳ Starting dependency installation..."
+          npm ci --no-audit --prefer-offline
+          echo "✅ Dependencies installed successfully!"
+          echo "::endgroup::"
+          
+      - name: 📊 Dependency Analysis
+        run: |
+          echo "::group::📊 Dependency Analysis"
+          echo "📦 Total Dependencies: $(npm list --depth=0 2>/dev/null | grep -c '├\|└' || echo 'N/A')"
+          echo "🔒 Security Audit:"
+          npm audit --audit-level=moderate || echo "⚠️ Some vulnerabilities found (non-blocking)"
+          echo "📈 Package Size Analysis:"
+          du -sh node_modules/ 2>/dev/null || echo "N/A"
+          echo "::endgroup::"
+        
+      - name: 🔧 Setup GitHub Pages
+        uses: actions/configure-pages@v4
+        
+      - name: 🏗️ Build Application
+        id: build-step
+        run: |
+          echo "::group::🏗️ Building Application"
+          echo "⏳ Starting build process..."
+          BUILD_START=$(date +%s)
+          
+          npm run build
+          
+          BUILD_END=$(date +%s)
+          BUILD_TIME=$((BUILD_END - BUILD_START))
+          
+          echo "✅ Build completed successfully!"
+          echo "⏱️ Build time: ${BUILD_TIME} seconds"
+          echo "build-time=${BUILD_TIME}" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+        env:
+          PUBLIC_URL: /Divided-Finance-Master
+          GENERATE_SOURCEMAP: false
+          
+      - name: 📊 Build Analysis
+        id: build-info
+        run: |
+          echo "::group::📊 Build Analysis"
+          
+          # Calculate build size
+          BUILD_SIZE=$(du -sh build/ | cut -f1)
+          echo "📦 Build Size: $BUILD_SIZE"
+          
+          # Count files
+          FILE_COUNT=$(find build/ -type f | wc -l)
+          echo "📄 Total Files: $FILE_COUNT"
+          
+          # Analyze file types
+          echo "📋 File Breakdown:"
+          echo "  🎨 CSS Files: $(find build/ -name "*.css" | wc -l)"
+          echo "  📜 JS Files: $(find build/ -name "*.js" | wc -l)"
+          echo "  🖼️ Images: $(find build/ -name "*.png" -o -name "*.jpg" -o -name "*.svg" -o -name "*.ico" | wc -l)"
+          echo "  📄 HTML Files: $(find build/ -name "*.html" | wc -l)"
+          
+          # Check for critical files
+          echo "🔍 Critical Files Check:"
+          [ -f "build/index.html" ] && echo "  ✅ index.html found" || echo "  ❌ index.html missing"
+          [ -f "build/static/js/main.*.js" ] && echo "  ✅ Main JS bundle found" || echo "  ❌ Main JS bundle missing"
+          [ -f "build/static/css/main.*.css" ] && echo "  ✅ Main CSS bundle found" || echo "  ❌ Main CSS bundle missing"
+          
+          # Output for next job
+          echo "size=$BUILD_SIZE" >> $GITHUB_OUTPUT
+          echo "sha=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+          
+      - name: 🔍 Build Validation
+        run: |
+          echo "::group::🔍 Build Validation"
+          echo "🧪 Running build validation tests..."
+          
+          # Check if build directory exists
+          if [ ! -d "build" ]; then
+            echo "❌ Build directory not found!"
+            exit 1
+          fi
+          
+          # Check if index.html exists and is not empty
+          if [ ! -s "build/index.html" ]; then
+            echo "❌ index.html is missing or empty!"
+            exit 1
+          fi
+          
+          # Check for JavaScript bundles
+          if [ ! -f build/static/js/main.*.js ]; then
+            echo "❌ Main JavaScript bundle not found!"
+            exit 1
+          fi
+          
+          echo "✅ All validation checks passed!"
+          echo "::endgroup::"
+          
+      - name: 📤 Upload Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./build
+          
+      - name: 📊 Upload Summary
+        run: |
+          echo "::group::📊 Upload Summary"
+          echo "✅ Build artifact uploaded successfully!"
+          echo "📦 Artifact contains: $(find build/ -type f | wc -l) files"
+          echo "💾 Total size: $(du -sh build/ | cut -f1)"
+          echo "🎯 Ready for deployment!"
+          echo "::endgroup::"
+
+  # 🚀 Deployment job with fancy logging
+  deploy:
+    name: 🚀 Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: 📋 Deployment Information
+        run: |
+          echo "::group::🚀 Deployment Information"
+          echo "🎯 Target: GitHub Pages"
+          echo "🌐 URL: ${{ env.DEPLOY_URL }}"
+          echo "📦 Build Size: ${{ needs.build.outputs.build-size }}"
+          echo "⏱️ Build Time: ${{ needs.build.outputs.build-time }} seconds"
+          echo "🔖 Commit: ${{ needs.build.outputs.commit-sha }}"
+          echo "📅 Deploy Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "::endgroup::"
+          
+      - name: 🚀 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
+      - name: ✅ Deployment Success
+        run: |
+          echo "::group::✅ Deployment Completed Successfully!"
+          echo "🎉 ${{ env.APP_NAME }} has been deployed!"
+          echo "🌐 Live URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "📊 Deployment Details:"
+          echo "  📦 Build Size: ${{ needs.build.outputs.build-size }}"
+          echo "  ⏱️ Build Time: ${{ needs.build.outputs.build-time }} seconds"
+          echo "  🔖 Version: ${{ needs.build.outputs.commit-sha }}"
+          echo ""
+          echo "🔗 Quick Links:"
+          echo "  🌐 Live Site: ${{ steps.deployment.outputs.page_url }}"
+          echo "  📊 Repository: ${{ github.server_url }}/${{ github.repository }}"
+          echo "  🔄 This Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+          echo "🎯 Next Steps:"
+          echo "  1. 🌐 Visit the live site to verify deployment"
+          echo "  2. 🧪 Test all application features"
+          echo "  3. 📊 Monitor for any issues"
+          echo "::endgroup::"
+          
+      - name: 🔔 Deployment Notification
+        if: success()
+        run: |
+          echo "::notice title=🎉 Deployment Successful::${{ env.APP_NAME }} has been successfully deployed to GitHub Pages! 🌐 Live at: ${{ steps.deployment.outputs.page_url }}"

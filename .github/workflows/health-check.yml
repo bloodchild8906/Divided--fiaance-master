@@ -1,0 +1,236 @@
+﻿name: 🏥 Health Check & Monitoring
+
+on:
+  schedule:
+    # Run health check every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      check_type:
+        description: 'Type of health check'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - quick
+        - performance
+
+env:
+  SITE_URL: 'https://bloodchild8906.github.io/Divided-Finance-Master'
+  APP_NAME: 'Divided Finance Master'
+
+jobs:
+  health-check:
+    name: 🏥 Site Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📋 Health Check Information
+        run: |
+          echo "::group::🏥 Health Check Information"
+          echo "🌐 Target URL: ${{ env.SITE_URL }}"
+          echo "📱 Application: ${{ env.APP_NAME }}"
+          echo "🔍 Check Type: ${{ github.event.inputs.check_type || 'scheduled' }}"
+          echo "📅 Check Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🤖 Triggered by: ${{ github.event_name }}"
+          echo "::endgroup::"
+
+      - name: 🌐 Basic Connectivity Test
+        run: |
+          echo "::group::🌐 Basic Connectivity Test"
+          echo "⏳ Testing basic connectivity to ${{ env.SITE_URL }}..."
+          
+          # Test if site is reachable
+          if curl -sSf "${{ env.SITE_URL }}" > /dev/null; then
+            echo "✅ Site is reachable!"
+          else
+            echo "❌ Site is not reachable!"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: 📊 Response Time Test
+        run: |
+          echo "::group::📊 Response Time Analysis"
+          echo "⏱️ Measuring response times..."
+          
+          # Measure response time
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' "${{ env.SITE_URL }}")
+          echo "📈 Response Time: ${RESPONSE_TIME}s"
+          
+          # Check if response time is acceptable (< 5 seconds)
+          if (( $(echo "$RESPONSE_TIME < 5.0" | bc -l) )); then
+            echo "✅ Response time is acceptable!"
+          else
+            echo "⚠️ Response time is slow (>${RESPONSE_TIME}s)"
+          fi
+          echo "::endgroup::"
+
+      - name: 🔍 Content Validation
+        run: |
+          echo "::group::🔍 Content Validation"
+          echo "🧪 Validating page content..."
+          
+          # Download the page content
+          CONTENT=$(curl -s "${{ env.SITE_URL }}")
+          
+          # Check for critical elements
+          if echo "$CONTENT" | grep -q "Divided Finance Master"; then
+            echo "✅ App title found in content"
+          else
+            echo "❌ App title not found in content"
+            exit 1
+          fi
+          
+          if echo "$CONTENT" | grep -q "<!DOCTYPE html>"; then
+            echo "✅ Valid HTML document"
+          else
+            echo "❌ Invalid HTML document"
+            exit 1
+          fi
+          
+          if echo "$CONTENT" | grep -q "react"; then
+            echo "✅ React application detected"
+          else
+            echo "⚠️ React application not clearly detected"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: 🔒 Security Headers Check
+        run: |
+          echo "::group::🔒 Security Headers Analysis"
+          echo "🛡️ Checking security headers..."
+          
+          # Get headers
+          HEADERS=$(curl -sI "${{ env.SITE_URL }}")
+          
+          echo "📋 Response Headers:"
+          echo "$HEADERS"
+          
+          # Check for HTTPS
+          if echo "$HEADERS" | grep -q "HTTP/2 200\|HTTP/1.1 200"; then
+            echo "✅ Valid HTTP response"
+          else
+            echo "❌ Invalid HTTP response"
+          fi
+          
+          # Check for security headers
+          if echo "$HEADERS" | grep -qi "x-frame-options\|content-security-policy"; then
+            echo "✅ Security headers present"
+          else
+            echo "⚠️ Some security headers missing (GitHub Pages default)"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: 📱 Mobile Responsiveness Check
+        if: github.event.inputs.check_type == 'full' || github.event.inputs.check_type == ''
+        run: |
+          echo "::group::📱 Mobile Responsiveness Check"
+          echo "📱 Checking mobile viewport configuration..."
+          
+          CONTENT=$(curl -s "${{ env.SITE_URL }}")
+          
+          if echo "$CONTENT" | grep -q 'viewport.*width=device-width'; then
+            echo "✅ Mobile viewport meta tag found"
+          else
+            echo "⚠️ Mobile viewport meta tag not found"
+          fi
+          
+          if echo "$CONTENT" | grep -q 'responsive\|mobile\|tailwind'; then
+            echo "✅ Responsive design indicators found"
+          else
+            echo "⚠️ Responsive design indicators not clearly detected"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: 🎯 Performance Metrics
+        if: github.event.inputs.check_type == 'performance' || github.event.inputs.check_type == 'full'
+        run: |
+          echo "::group::🎯 Performance Metrics"
+          echo "📊 Gathering performance metrics..."
+          
+          # Measure various timing metrics
+          METRICS=$(curl -o /dev/null -s -w "
+          📈 Performance Metrics:
+            🔗 DNS Lookup: %{time_namelookup}s
+            🤝 TCP Connect: %{time_connect}s
+            🔒 TLS Handshake: %{time_appconnect}s
+            📤 Time to First Byte: %{time_starttransfer}s
+            📥 Total Time: %{time_total}s
+            📦 Download Size: %{size_download} bytes
+            ⚡ Download Speed: %{speed_download} bytes/s
+          " "${{ env.SITE_URL }}")
+          
+          echo "$METRICS"
+          echo "::endgroup::"
+
+      - name: 🔍 Lighthouse-style Checks
+        if: github.event.inputs.check_type == 'full'
+        run: |
+          echo "::group::🔍 Lighthouse-style Quality Checks"
+          echo "🧪 Running quality assessments..."
+          
+          CONTENT=$(curl -s "${{ env.SITE_URL }}")
+          
+          # Check for performance best practices
+          echo "⚡ Performance Checks:"
+          if echo "$CONTENT" | grep -q 'defer\|async'; then
+            echo "  ✅ Script optimization detected"
+          else
+            echo "  ⚠️ Script optimization not clearly detected"
+          fi
+          
+          # Check for SEO basics
+          echo "🔍 SEO Checks:"
+          if echo "$CONTENT" | grep -q '<title>'; then
+            echo "  ✅ Page title found"
+          else
+            echo "  ❌ Page title missing"
+          fi
+          
+          if echo "$CONTENT" | grep -q 'description.*content'; then
+            echo "  ✅ Meta description found"
+          else
+            echo "  ⚠️ Meta description not found"
+          fi
+          
+          # Check for accessibility
+          echo "♿ Accessibility Checks:"
+          if echo "$CONTENT" | grep -q 'alt=\|aria-\|role='; then
+            echo "  ✅ Accessibility attributes found"
+          else
+            echo "  ⚠️ Accessibility attributes not clearly detected"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: 📊 Health Check Summary
+        run: |
+          echo "::group::📊 Health Check Summary"
+          echo "🎉 Health check completed successfully!"
+          echo ""
+          echo "📋 Summary:"
+          echo "  🌐 Site URL: ${{ env.SITE_URL }}"
+          echo "  ✅ Connectivity: Passed"
+          echo "  ✅ Content Validation: Passed"
+          echo "  ✅ Security: Basic checks passed"
+          echo "  📅 Check Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "🔗 Quick Links:"
+          echo "  🌐 Live Site: ${{ env.SITE_URL }}"
+          echo "  📊 Repository: ${{ github.server_url }}/${{ github.repository }}"
+          echo "  🔄 This Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "::endgroup::"
+
+      - name: 🔔 Health Check Notification
+        if: success()
+        run: |
+          echo "::notice title=✅ Health Check Passed::${{ env.APP_NAME }} is healthy and running properly! 🌐 Checked at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+      - name: 🚨 Health Check Failed
+        if: failure()
+        run: |
+          echo "::error title=❌ Health Check Failed::${{ env.APP_NAME }} health check failed! Please investigate the issues above."

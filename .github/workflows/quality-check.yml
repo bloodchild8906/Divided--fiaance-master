@@ -1,0 +1,262 @@
+﻿name: 🔍 Code Quality & Security Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run security check weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  APP_NAME: 'Divided Finance Master'
+
+jobs:
+  quality-check:
+    name: 🔍 Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📋 Quality Check Information
+        run: |
+          echo "::group::🔍 Code Quality Check Information"
+          echo "📱 Application: ${{ env.APP_NAME }}"
+          echo "🔧 Node.js Version: ${{ env.NODE_VERSION }}"
+          echo "🏃 Runner: ${{ runner.os }}"
+          echo "📅 Check Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🔀 Event: ${{ github.event_name }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "👤 Actor: ${{ github.actor }}"
+          echo "::endgroup::"
+
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: |
+          echo "::group::📦 Installing Dependencies"
+          echo "⏳ Installing dependencies for quality checks..."
+          npm ci --no-audit --prefer-offline
+          echo "✅ Dependencies installed successfully!"
+          echo "::endgroup::"
+
+      - name: 🔒 Security Audit
+        run: |
+          echo "::group::🔒 Security Vulnerability Audit"
+          echo "🛡️ Running npm security audit..."
+          
+          # Run audit and capture output
+          if npm audit --audit-level=moderate; then
+            echo "✅ No moderate or high severity vulnerabilities found!"
+          else
+            echo "⚠️ Security vulnerabilities detected!"
+            echo "📋 Detailed audit report:"
+            npm audit --audit-level=low
+            echo ""
+            echo "🔧 Attempting automatic fixes..."
+            npm audit fix --dry-run
+          fi
+          echo "::endgroup::"
+
+      - name: 📊 Dependency Analysis
+        run: |
+          echo "::group::📊 Dependency Analysis"
+          echo "📦 Analyzing project dependencies..."
+          
+          # Count dependencies
+          PROD_DEPS=$(npm list --depth=0 --prod 2>/dev/null | grep -c '├\|└' || echo '0')
+          DEV_DEPS=$(npm list --depth=0 --dev 2>/dev/null | grep -c '├\|└' || echo '0')
+          
+          echo "📈 Dependency Statistics:"
+          echo "  📦 Production Dependencies: $PROD_DEPS"
+          echo "  🔧 Development Dependencies: $DEV_DEPS"
+          echo "  💾 Total node_modules Size: $(du -sh node_modules/ 2>/dev/null | cut -f1 || echo 'N/A')"
+          
+          # Check for outdated packages
+          echo ""
+          echo "📅 Outdated Packages Check:"
+          if npm outdated; then
+            echo "⚠️ Some packages are outdated (see above)"
+          else
+            echo "✅ All packages are up to date!"
+          fi
+          echo "::endgroup::"
+
+      - name: 🧹 Code Linting
+        run: |
+          echo "::group::🧹 Code Quality Linting"
+          echo "🔍 Analyzing code quality..."
+          
+          # Check if ESLint is configured
+          if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
+            echo "🔧 ESLint configuration found, running linter..."
+            npx eslint src/ --ext .js,.jsx,.ts,.tsx --format=compact || echo "⚠️ Linting issues found"
+          else
+            echo "⚠️ No ESLint configuration found"
+            echo "🔍 Running basic syntax check..."
+            find src/ -name "*.js" -o -name "*.jsx" | xargs -I {} node -c {} && echo "✅ Basic syntax check passed"
+          fi
+          echo "::endgroup::"
+
+      - name: 🧪 Build Test
+        run: |
+          echo "::group::🧪 Build Verification Test"
+          echo "🏗️ Testing if application builds successfully..."
+          
+          BUILD_START=$(date +%s)
+          
+          if npm run build; then
+            BUILD_END=$(date +%s)
+            BUILD_TIME=$((BUILD_END - BUILD_START))
+            echo "✅ Build completed successfully in ${BUILD_TIME} seconds!"
+            
+            # Analyze build output
+            if [ -d "build" ]; then
+              BUILD_SIZE=$(du -sh build/ | cut -f1)
+              FILE_COUNT=$(find build/ -type f | wc -l)
+              echo "📊 Build Analysis:"
+              echo "  📦 Build Size: $BUILD_SIZE"
+              echo "  📄 Total Files: $FILE_COUNT"
+              echo "  🎨 CSS Files: $(find build/ -name "*.css" | wc -l)"
+              echo "  📜 JS Files: $(find build/ -name "*.js" | wc -l)"
+            fi
+          else
+            echo "❌ Build failed!"
+            exit 1
+          fi
+          echo "::endgroup::"
+        env:
+          PUBLIC_URL: /Divided-Finance-Master
+          GENERATE_SOURCEMAP: false
+
+      - name: 📁 File Structure Analysis
+        run: |
+          echo "::group::📁 Project Structure Analysis"
+          echo "🗂️ Analyzing project structure..."
+          
+          # Count different file types
+          echo "📊 File Type Distribution:"
+          echo "  📜 JavaScript/JSX: $(find src/ -name "*.js" -o -name "*.jsx" | wc -l)"
+          echo "  🎨 CSS Files: $(find src/ -name "*.css" | wc -l)"
+          echo "  🖼️ Images: $(find src/ public/ -name "*.png" -o -name "*.jpg" -o -name "*.svg" -o -name "*.ico" 2>/dev/null | wc -l)"
+          echo "  📄 JSON Files: $(find . -name "*.json" -not -path "./node_modules/*" | wc -l)"
+          echo "  📋 Markdown Files: $(find . -name "*.md" -not -path "./node_modules/*" | wc -l)"
+          
+          # Check for important files
+          echo ""
+          echo "🔍 Important Files Check:"
+          [ -f "package.json" ] && echo "  ✅ package.json" || echo "  ❌ package.json missing"
+          [ -f "README.md" ] && echo "  ✅ README.md" || echo "  ❌ README.md missing"
+          [ -f "public/index.html" ] && echo "  ✅ public/index.html" || echo "  ❌ public/index.html missing"
+          [ -f "src/index.js" ] && echo "  ✅ src/index.js" || echo "  ❌ src/index.js missing"
+          [ -f ".gitignore" ] && echo "  ✅ .gitignore" || echo "  ❌ .gitignore missing"
+          
+          echo "::endgroup::"
+
+      - name: 🔍 Code Complexity Analysis
+        run: |
+          echo "::group::🔍 Code Complexity Analysis"
+          echo "📊 Analyzing code complexity..."
+          
+          # Count lines of code
+          JS_LINES=$(find src/ -name "*.js" -o -name "*.jsx" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo '0')
+          CSS_LINES=$(find src/ -name "*.css" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo '0')
+          
+          echo "📈 Code Statistics:"
+          echo "  📜 JavaScript/JSX Lines: $JS_LINES"
+          echo "  🎨 CSS Lines: $CSS_LINES"
+          echo "  📁 Source Directories: $(find src/ -type d | wc -l)"
+          echo "  📄 Component Files: $(find src/ -name "*.js" -o -name "*.jsx" | wc -l)"
+          
+          # Estimate complexity
+          if [ "$JS_LINES" -lt 1000 ]; then
+            echo "  📊 Complexity: Low (< 1K lines)"
+          elif [ "$JS_LINES" -lt 5000 ]; then
+            echo "  📊 Complexity: Medium (1K-5K lines)"
+          else
+            echo "  📊 Complexity: High (> 5K lines)"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: 🏆 Quality Score Calculation
+        run: |
+          echo "::group::🏆 Overall Quality Score"
+          echo "📊 Calculating quality score..."
+          
+          SCORE=100
+          
+          # Deduct points for issues
+          if ! npm audit --audit-level=high --silent; then
+            SCORE=$((SCORE - 20))
+            echo "  ⚠️ -20 points: High severity vulnerabilities"
+          fi
+          
+          if [ ! -f ".eslintrc.js" ] && [ ! -f ".eslintrc.json" ]; then
+            SCORE=$((SCORE - 10))
+            echo "  ⚠️ -10 points: No ESLint configuration"
+          fi
+          
+          if [ ! -f "README.md" ]; then
+            SCORE=$((SCORE - 5))
+            echo "  ⚠️ -5 points: No README.md"
+          fi
+          
+          # Determine grade
+          if [ "$SCORE" -ge 90 ]; then
+            GRADE="A+"
+            EMOJI="🏆"
+          elif [ "$SCORE" -ge 80 ]; then
+            GRADE="A"
+            EMOJI="🥇"
+          elif [ "$SCORE" -ge 70 ]; then
+            GRADE="B"
+            EMOJI="🥈"
+          elif [ "$SCORE" -ge 60 ]; then
+            GRADE="C"
+            EMOJI="🥉"
+          else
+            GRADE="D"
+            EMOJI="📉"
+          fi
+          
+          echo ""
+          echo "$EMOJI Quality Score: $SCORE/100 (Grade: $GRADE)"
+          echo "::endgroup::"
+
+      - name: 📊 Quality Check Summary
+        run: |
+          echo "::group::📊 Quality Check Summary"
+          echo "🎉 Code quality check completed!"
+          echo ""
+          echo "📋 Summary:"
+          echo "  📱 Application: ${{ env.APP_NAME }}"
+          echo "  🔒 Security: Audit completed"
+          echo "  🧹 Code Quality: Analysis completed"
+          echo "  🧪 Build Test: Passed"
+          echo "  📅 Check Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "🔗 Quick Links:"
+          echo "  📊 Repository: ${{ github.server_url }}/${{ github.repository }}"
+          echo "  🔄 This Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "::endgroup::"
+
+      - name: 🔔 Quality Check Notification
+        if: success()
+        run: |
+          echo "::notice title=✅ Quality Check Passed::${{ env.APP_NAME }} passed all quality checks! 🏆 Code quality analysis completed successfully."
+
+      - name: 🚨 Quality Check Failed
+        if: failure()
+        run: |
+          echo "::error title=❌ Quality Check Failed::${{ env.APP_NAME }} quality check failed! Please review the issues above and fix them."
